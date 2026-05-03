@@ -10,7 +10,7 @@ local ui = uiLoader({
 ui.autoDisableToggles = true
 
 local window = ui.newWindow({
-    text = 'Rebirth Legend Farm - made by pogreshim',
+    text = 'LX49 Release // made by ForgottenHuman',
     resize = true,
     size = Vector2.new(550, 400),
     position = nil
