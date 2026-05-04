@@ -738,6 +738,25 @@ do
             text = 'add Tp to Ascend'
         })
     end
+    
+    local section2 = infoMenu:addSection({
+        text = '--CONTACTS--',
+        side = 'right'
+    })
+    
+    do
+        section2:addLabel({
+            text = ' '
+        })
+        
+        section2:addLabel({
+            text = 'My Telegram: @Kyoex'
+        })
+        
+        section2:addLabel({
+            text = 'My Discord: eqstez'
+        })
+    end
 end
 
 -- Очистка при закрытии
