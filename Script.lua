@@ -175,7 +175,7 @@ do
         })
         
         for _, option in ipairs(rebirthOptions) do
-            local rebirthButton = section2:addButton({
+            section2:addButton({
                 text = option.name,
                 style = 'small'
             }, function()
@@ -380,6 +380,7 @@ do
                                 HatchServer:InvokeServer(egg)
                             end
                         end)
+                        task.wait(0.5)
                     end
                 end)
             else
@@ -689,29 +690,45 @@ do
         })
         
         section:addLabel({
-            text = 'add new undetect'
+            text = '[v1.0] Initial Release'
         })
         
         section:addLabel({
-            text = 'add potions'
+            text = '[v1.1] Added Potions (Rainbow, x3, x4)'
         })
         
         section:addLabel({
-            text = 'add 46 eggs hatch'
+            text = '[v1.2] Added 46 Eggs Auto Hatch'
         })
         
         section:addLabel({
-            text = 'add Anti-Afk'
+            text = '[v1.3] Added Anti-AFK'
         })
         
         section:addLabel({
-            text = 'add Tp to Ascend'
+            text = '[v1.4] Added TP to Ascend'
+        })
+        
+        section:addLabel({
+            text = '[v1.5] Added Egg List with Selection'
+        })
+        
+        section:addLabel({
+            text = '[v1.6] Added Rebirth Multiplier List'
+        })
+        
+        section:addLabel({
+            text = '[v1.7] UI Improvements & Bug Fixes'
+        })
+        
+        section:addLabel({
+            text = '[v1.8] Added 0.5s Delay to Auto Hatch'
         })
     end
     
     local section2 = infoMenu:addSection({
-        text = '--CONTACTS--',
-        side = 'right'
+        text = '--FIXES--',
+        side = 'left'
     })
     
     do
@@ -720,10 +737,49 @@ do
         })
         
         section2:addLabel({
-            text = 'My Telegram: @Kyoex'
+            text = '- Fixed Egg Hatch Remote'
         })
         
         section2:addLabel({
+            text = '- Fixed Rebirth Values'
+        })
+        
+        section2:addLabel({
+            text = '- Fixed Potion Auto Buy'
+        })
+        
+        section2:addLabel({
+            text = '- Fixed UI Overlap Issues'
+        })
+        
+        section2:addLabel({
+            text = '- Fixed Inf Jump Lag'
+        })
+        
+        section2:addLabel({
+            text = '- Optimized Remote Spam'
+        })
+        
+        section2:addLabel({
+            text = '- Added 0.5s Hatch Delay'
+        })
+    end
+    
+    local section3 = infoMenu:addSection({
+        text = '--CONTACTS--',
+        side = 'right'
+    })
+    
+    do
+        section3:addLabel({
+            text = ' '
+        })
+        
+        section3:addLabel({
+            text = 'My Telegram: @Kyoex'
+        })
+        
+        section3:addLabel({
             text = 'My Discord: eqstez'
         })
     end
