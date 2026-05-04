@@ -12,7 +12,7 @@ ui.autoDisableToggles = true
 local window = ui.newWindow({
     text = 'LX49 Release // made by ForgottenHuman',
     resize = true,
-    size = Vector2.new(550, 400),
+    size = Vector2.new(550, 500),
     position = nil
 })
 
@@ -60,6 +60,7 @@ local potionConnection
 local infJumpEnabled = false
 local menuVisible = true
 local selectedEggs = {}
+local eggToggles = {}
 local selectedPotion = "RainbowPotion1"
 
 -- Открытие/закрытие меню на RightAlt
@@ -218,145 +219,83 @@ local eggsMenu = window:addMenu({
 
 do
     local section = eggsMenu:addSection({
-        text = 'Add Egg',
+        text = 'Egg List',
         side = 'left'
     })
     
     do
         section:addLabel({
-            text = 'Enter egg name and click Add'
+            text = 'Select eggs to auto hatch'
         })
         
-        local eggTextbox = section:addTextbox({
-            text = 'Egg Name'
-        })
+        local eggList = EggsFolder:GetChildren()
+        table.sort(eggList, function(a, b) return a.Name < b.Name end)
         
-        local addedEggsLabel = section:addLabel({
-            text = 'Selected Eggs: 0'
-        })
-        
-        section:addButton({
-            text = 'Add Egg',
-            style = 'large'
-        }, function()
-            local eggName = eggTextbox:getText()
-            if eggName and eggName ~= '' then
-                local egg = EggsFolder:FindFirstChild(eggName)
-                if egg then
-                    if not selectedEggs[eggName] then
-                        selectedEggs[eggName] = true
-                        ui.notify({
-                            title = 'Egg Added',
-                            message = 'Added: ' .. eggName,
-                            duration = 2
-                        })
-                    else
-                        ui.notify({
-                            title = 'Error',
-                            message = 'Egg already added!',
-                            duration = 2
-                        })
-                    end
+        for _, egg in ipairs(eggList) do
+            local eggName = egg.Name
+            local eggToggle = section:addToggle({
+                text = eggName,
+                state = false
+            })
+            
+            eggToggle:bindToEvent('onToggle', function(newState)
+                if newState then
+                    selectedEggs[eggName] = true
                 else
-                    ui.notify({
-                        title = 'Error',
-                        message = 'Egg not found!',
-                        duration = 2
-                    })
+                    selectedEggs[eggName] = nil
                 end
-            end
-            local count = 0
-            for _ in pairs(selectedEggs) do count = count + 1 end
-            addedEggsLabel:setText('Selected Eggs: ' .. tostring(count))
-        end):setTooltip('Add an egg to the hatching list')
+            end)
+            
+            table.insert(eggToggles, eggToggle)
+        end
     end
     
     local section2 = eggsMenu:addSection({
-        text = 'Preset Eggs',
-        side = 'left'
+        text = 'Controls',
+        side = 'right'
     })
     
     do
         section2:addLabel({
-            text = 'Quick Add Eggs'
+            text = 'Manage selected eggs'
         })
         
         section2:addButton({
-            text = 'Add All Eggs',
+            text = 'Select All Eggs',
             style = 'small'
         }, function()
             for _, egg in ipairs(EggsFolder:GetChildren()) do
                 selectedEggs[egg.Name] = true
             end
-            local count = 0
-            for _ in pairs(selectedEggs) do count = count + 1 end
-            addedEggsLabel:setText('Selected Eggs: ' .. tostring(count))
             ui.notify({
                 title = 'Eggs',
-                message = 'All eggs added!',
+                message = 'All eggs selected!',
                 duration = 2
             })
-        end):setTooltip('Add all available eggs')
+        end):setTooltip('Select all available eggs')
         
         section2:addButton({
-            text = 'Add Alien Egg',
-            style = 'small'
-        }, function()
-            local eggName = "Alien Egg"
-            if EggsFolder:FindFirstChild(eggName) then
-                selectedEggs[eggName] = true
-                local count = 0
-                for _ in pairs(selectedEggs) do count = count + 1 end
-                addedEggsLabel:setText('Selected Eggs: ' .. tostring(count))
-                ui.notify({
-                    title = 'Egg Added',
-                    message = 'Alien Egg added!',
-                    duration = 2
-                })
-            end
-        end)
-        
-        section2:addButton({
-            text = 'Add Angelic Egg',
-            style = 'small'
-        }, function()
-            local eggName = "Angelic Egg"
-            if EggsFolder:FindFirstChild(eggName) then
-                selectedEggs[eggName] = true
-                local count = 0
-                for _ in pairs(selectedEggs) do count = count + 1 end
-                addedEggsLabel:setText('Selected Eggs: ' .. tostring(count))
-            end
-        end)
-    end
-    
-    local section3 = eggsMenu:addSection({
-        text = 'Auto Hatch',
-        side = 'right'
-    })
-    
-    do
-        section3:addLabel({
-            text = 'Start/Stop Hatching'
-        })
-        
-        section3:addButton({
-            text = 'Clear Egg List',
+            text = 'Deselect All Eggs',
             style = 'small'
         }, function()
             selectedEggs = {}
-            local count = 0
-            for _ in pairs(selectedEggs) do count = count + 1 end
-            addedEggsLabel:setText('Selected Eggs: ' .. tostring(count))
             ui.notify({
                 title = 'Eggs',
-                message = 'Egg list cleared!',
+                message = 'All eggs deselected!',
                 duration = 2
             })
-        end):setTooltip('Clear all selected eggs')
+        end):setTooltip('Deselect all eggs')
         
-        local hatchToggle = section3:addToggle({
-            text = 'Auto Hatch',
+        section2:addLabel({
+            text = ' '
+        })
+        
+        section2:addLabel({
+            text = 'Auto Hatch Control'
+        })
+        
+        local hatchToggle = section2:addToggle({
+            text = 'Auto Hatch Selected Eggs',
             state = false
         })
         
@@ -379,65 +318,25 @@ do
                 end
             end
         end)
-    end
-    
-    local section4 = eggsMenu:addSection({
-        text = 'Individual Egg Control',
-        side = 'right'
-    })
-    
-    do
-        section4:addLabel({
-            text = 'Auto Hatch Single Egg'
-        })
         
-        local personalEggTextbox = section4:addTextbox({
-            text = 'Single Egg Name'
-        })
-        
-        local singleHatchToggle = section4:addToggle({
-            text = 'Auto Hatch (Single)',
-            state = false
-        })
-        
-        local singleHatchConnection
-        
-        singleHatchToggle:bindToEvent('onToggle', function(newState)
-            if newState then
-                local singleEggName = personalEggTextbox:getText()
-                singleHatchConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        local egg = EggsFolder:FindFirstChild(singleEggName)
-                        if egg then
-                            HatchServer:InvokeServer(egg)
-                        end
-                    end)
-                end)
-            else
-                if singleHatchConnection then
-                    singleHatchConnection:Disconnect()
-                    singleHatchConnection = nil
-                end
-            end
-        end)
-        
-        section4:addButton({
-            text = 'Hatch Once',
+        section2:addButton({
+            text = 'Hatch Selected Once',
             style = 'small'
         }, function()
-            local singleEggName = personalEggTextbox:getText()
-            pcall(function()
-                local egg = EggsFolder:FindFirstChild(singleEggName)
-                if egg then
-                    HatchServer:InvokeServer(egg)
-                    ui.notify({
-                        title = 'Hatch',
-                        message = 'Hatched: ' .. singleEggName,
-                        duration = 2
-                    })
-                end
-            end)
-        end):setTooltip('Hatch the specified egg once')
+            for eggName, _ in pairs(selectedEggs) do
+                pcall(function()
+                    local egg = EggsFolder:FindFirstChild(eggName)
+                    if egg then
+                        HatchServer:InvokeServer(egg)
+                    end
+                end)
+            end
+            ui.notify({
+                title = 'Hatch',
+                message = 'Hatched all selected eggs once!',
+                duration = 2
+            })
+        end):setTooltip('Hatch all selected eggs one time')
     end
 end
 
