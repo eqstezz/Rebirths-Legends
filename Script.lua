@@ -22,6 +22,8 @@ local TappingRemote = ReplicatedStorage:WaitForChild("TappingRemote")
 local TapEvent = TappingRemote:WaitForChild("Tap")
 local SuperTapEvent = TappingRemote:WaitForChild("SuperTap")
 local RebirthEvent = ReplicatedStorage:WaitForChild("Rebirth")
+local AscendEvent = ReplicatedStorage:WaitForChild("Ascend")
+local UpgradeEvent = ReplicatedStorage:WaitForChild("Upgrade")
 local EggHatchingRemote = ReplicatedStorage:WaitForChild("EggHatchingRemote")
 local HatchServer = EggHatchingRemote:WaitForChild("HatchServer")
 local PotionEvent = ReplicatedStorage:WaitForChild("PotionEvent")
@@ -36,6 +38,7 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Мгновенные ProximityPrompt
 for _, prompt in ipairs(game:GetDescendants()) do
@@ -54,6 +57,8 @@ end)
 local tapConnection
 local superTapConnection
 local rebirthConnection
+local ascendConnection
+local upgradeConnection
 local antiAFKConnection
 local hatchConnection
 local potionConnection
@@ -63,6 +68,8 @@ local selectedEggs = {}
 local eggToggles = {}
 local selectedPotion = "RainbowPotion1"
 local selectedRebirth = 1
+local selectedUpgrade = "Luck"
+local hatchDelay = 0.25
 
 -- Таблица rebirth множителей
 local rebirthOptions = {
@@ -97,6 +104,23 @@ local rebirthOptions = {
     {name = "x5Oc", value = 5e27},
     {name = "x10Oc", value = 1e28},
 }
+
+-- Таблица улучшений
+local upgradeOptions = {
+    {name = "Luck", display = "Luck"},
+    {name = "More Taps", display = "More Taps"},
+    {name = "More Gems", display = "More Gems"},
+    {name = "HatchSpeed", display = "Hatch Speed"},
+}
+
+-- Функция нажатия E
+local function pressE()
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
+    end)
+end
 
 -- Открытие/закрытие меню на RightAlt
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -232,16 +256,83 @@ do
     end
     
     local section3 = menu:addSection({
+        text = 'Auto Upgrade',
+        side = 'left'
+    })
+    
+    do
+        section3:addLabel({
+            text = 'Select Upgrade'
+        })
+        
+        for _, option in ipairs(upgradeOptions) do
+            section3:addButton({
+                text = option.display,
+                style = 'small'
+            }, function()
+                selectedUpgrade = option.name
+                ui.notify({
+                    title = 'Upgrade',
+                    message = 'Selected: ' .. option.display,
+                    duration = 2
+                })
+            end)
+        end
+        
+        section3:addLabel({
+            text = ' '
+        })
+        
+        section3:addLabel({
+            text = 'Auto Upgrade Control'
+        })
+        
+        local upgradeToggle = section3:addToggle({
+            text = 'Auto Upgrade',
+            state = false
+        })
+        
+        upgradeToggle:bindToEvent('onToggle', function(newState)
+            if newState then
+                upgradeConnection = RunService.Heartbeat:Connect(function()
+                    pcall(function()
+                        UpgradeEvent:InvokeServer(selectedUpgrade)
+                    end)
+                end)
+            else
+                if upgradeConnection then
+                    upgradeConnection:Disconnect()
+                    upgradeConnection = nil
+                end
+            end
+        end)
+        
+        section3:addButton({
+            text = 'Upgrade Once',
+            style = 'small'
+        }, function()
+            pcall(function()
+                UpgradeEvent:InvokeServer(selectedUpgrade)
+            end)
+            ui.notify({
+                title = 'Upgrade',
+                message = 'Upgraded: ' .. selectedUpgrade,
+                duration = 2
+            })
+        end):setTooltip('Upgrade selected stat once')
+    end
+    
+    local section4 = menu:addSection({
         text = 'Teleport',
         side = 'right'
     })
     
     do
-        section3:addLabel({
+        section4:addLabel({
             text = 'Teleport to Ascend'
         })
         
-        section3:addButton({
+        section4:addButton({
             text = 'Teleport to Ascend',
             style = 'large'
         }, function()
@@ -280,6 +371,99 @@ do
                 duration = 2
             })
         end):setTooltip('Teleports you to workspace.Ascensions.Ascend.Main')
+    end
+    
+    local section5 = menu:addSection({
+        text = 'Ascend',
+        side = 'right'
+    })
+    
+    do
+        section5:addLabel({
+            text = 'Auto Ascend'
+        })
+        
+        local ascendToggle = section5:addToggle({
+            text = 'Auto Ascend',
+            state = false
+        })
+        
+        ascendToggle:bindToEvent('onToggle', function(newState)
+            if newState then
+                ascendConnection = RunService.Heartbeat:Connect(function()
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        if not char then
+                            LocalPlayer.CharacterAdded:Wait()
+                            char = LocalPlayer.Character
+                        end
+                        
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        if not hrp then return end
+                        
+                        local ascensions = Workspace:FindFirstChild("Ascensions")
+                        if not ascensions then return end
+                        
+                        local ascend = ascensions:FindFirstChild("Ascend")
+                        if not ascend then return end
+                        
+                        local mainPart = ascend:FindFirstChild("Main")
+                        if not mainPart then return end
+                        
+                        hrp.CFrame = mainPart.CFrame + Vector3.new(0, 3, 0)
+                        
+                        task.wait(0.1)
+                        
+                        AscendEvent:FireServer()
+                        
+                        task.wait(0.1)
+                        
+                        pressE()
+                    end)
+                end)
+            else
+                if ascendConnection then
+                    ascendConnection:Disconnect()
+                    ascendConnection = nil
+                end
+            end
+        end)
+        
+        section5:addButton({
+            text = 'Ascend Once',
+            style = 'small'
+        }, function()
+            pcall(function()
+                local char = LocalPlayer.Character
+                if not char then
+                    LocalPlayer.CharacterAdded:Wait()
+                    char = LocalPlayer.Character
+                end
+                
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local ascensions = Workspace:FindFirstChild("Ascensions")
+                    if ascensions then
+                        local ascend = ascensions:FindFirstChild("Ascend")
+                        if ascend then
+                            local mainPart = ascend:FindFirstChild("Main")
+                            if mainPart then
+                                hrp.CFrame = mainPart.CFrame + Vector3.new(0, 3, 0)
+                                task.wait(0.1)
+                                AscendEvent:FireServer()
+                                task.wait(0.1)
+                                pressE()
+                            end
+                        end
+                    end
+                end
+            end)
+            ui.notify({
+                title = 'Ascend',
+                message = 'Ascended once!',
+                duration = 2
+            })
+        end):setTooltip('Teleport to Ascend and use it once')
     end
 end
 
@@ -362,6 +546,29 @@ do
         })
         
         section2:addLabel({
+            text = 'Hatch Delay'
+        })
+        
+        section2:addSlider({
+            text = 'Delay',
+            min = 0.01,
+            max = 0.5,
+            step = 0.01,
+            val = 0.25
+        }, function(newValue)
+            hatchDelay = newValue
+            ui.notify({
+                title = 'Hatch Delay',
+                message = 'Delay set to: ' .. string.format("%.2f", newValue) .. 's',
+                duration = 2
+            })
+        end):setTooltip('Set hatch delay (0.01s - 0.5s)')
+        
+        section2:addLabel({
+            text = ' '
+        })
+        
+        section2:addLabel({
             text = 'Auto Hatch Control'
         })
         
@@ -380,7 +587,7 @@ do
                                 HatchServer:InvokeServer(egg)
                             end
                         end)
-                        task.wait(0.5)
+                        task.wait(hatchDelay)
                     end
                 end)
             else
@@ -722,7 +929,15 @@ do
         })
         
         section:addLabel({
-            text = '[v1.8] Added 0.5s Delay to Auto Hatch'
+            text = '[v1.8] Added Adjustable Hatch Delay'
+        })
+        
+        section:addLabel({
+            text = '[v1.9] Added Auto Ascend + Auto E'
+        })
+        
+        section:addLabel({
+            text = '[v2.0] Added Auto Upgrade (Luck/MoreTaps/MoreGems/HatchSpeed)'
         })
     end
     
@@ -761,7 +976,7 @@ do
         })
         
         section2:addLabel({
-            text = '- Added 0.5s Hatch Delay'
+            text = '- Added Auto Upgrade Feature'
         })
     end
     
@@ -790,6 +1005,8 @@ window:bindToEvent('onClose', function()
     if tapConnection then tapConnection:Disconnect() end
     if superTapConnection then superTapConnection:Disconnect() end
     if rebirthConnection then rebirthConnection:Disconnect() end
+    if ascendConnection then ascendConnection:Disconnect() end
+    if upgradeConnection then upgradeConnection:Disconnect() end
     if antiAFKConnection then antiAFKConnection:Disconnect() end
     if hatchConnection then hatchConnection:Disconnect() end
     if potionConnection then potionConnection:Disconnect() end
