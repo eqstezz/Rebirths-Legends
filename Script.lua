@@ -62,6 +62,41 @@ local menuVisible = true
 local selectedEggs = {}
 local eggToggles = {}
 local selectedPotion = "RainbowPotion1"
+local selectedRebirth = 1
+
+-- Таблица rebirth множителей
+local rebirthOptions = {
+    {name = "x1", value = 1},
+    {name = "x10", value = 10},
+    {name = "x50", value = 50},
+    {name = "x100", value = 100},
+    {name = "x250", value = 250},
+    {name = "x500", value = 500},
+    {name = "x1k", value = 1000},
+    {name = "x5k", value = 5000},
+    {name = "x10k", value = 10000},
+    {name = "x100k", value = 100000},
+    {name = "x1m", value = 1000000},
+    {name = "x10m", value = 10000000},
+    {name = "x100m", value = 100000000},
+    {name = "x1b", value = 1000000000},
+    {name = "x10b", value = 10000000000},
+    {name = "x100b", value = 100000000000},
+    {name = "x1t", value = 1000000000000},
+    {name = "x10t", value = 10000000000000},
+    {name = "x99.9t", value = 99900000000000},
+    {name = "x1Qa", value = 1000000000000000},
+    {name = "x100Qa", value = 100000000000000000},
+    {name = "x10Qi", value = 10000000000000000000},
+    {name = "x1Sx", value = 1e21},
+    {name = "x10Sx", value = 1e22},
+    {name = "x99.9Sx", value = 9.99e22},
+    {name = "x1Sp", value = 1e24},
+    {name = "x100Sp", value = 1e26},
+    {name = "x1Oc", value = 1e27},
+    {name = "x5Oc", value = 5e27},
+    {name = "x10Oc", value = 1e28},
+}
 
 -- Открытие/закрытие меню на RightAlt
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -136,7 +171,29 @@ do
     
     do
         section2:addLabel({
-            text = 'Auto Rebirth'
+            text = 'Select Rebirth Multiplier'
+        })
+        
+        for _, option in ipairs(rebirthOptions) do
+            local rebirthButton = section2:addButton({
+                text = option.name,
+                style = 'small'
+            }, function()
+                selectedRebirth = option.value
+                ui.notify({
+                    title = 'Rebirth',
+                    message = 'Selected: ' .. option.name,
+                    duration = 2
+                })
+            end)
+        end
+        
+        section2:addLabel({
+            text = ' '
+        })
+        
+        section2:addLabel({
+            text = 'Auto Rebirth Control'
         })
         
         local rebirthToggle = section2:addToggle({
@@ -148,7 +205,7 @@ do
             if newState then
                 rebirthConnection = RunService.Heartbeat:Connect(function()
                     pcall(function()
-                        RebirthEvent:FireServer(1e28)
+                        RebirthEvent:FireServer(selectedRebirth)
                     end)
                 end)
             else
@@ -158,6 +215,20 @@ do
                 end
             end
         end)
+        
+        section2:addButton({
+            text = 'Rebirth Once',
+            style = 'small'
+        }, function()
+            pcall(function()
+                RebirthEvent:FireServer(selectedRebirth)
+            end)
+            ui.notify({
+                title = 'Rebirth',
+                message = 'Rebirthed once!',
+                duration = 2
+            })
+        end):setTooltip('Rebirth one time with selected multiplier')
     end
     
     local section3 = menu:addSection({
