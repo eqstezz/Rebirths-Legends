@@ -23,13 +23,15 @@ local TapEvent = TappingRemote:WaitForChild("Tap")
 local SuperTapEvent = TappingRemote:WaitForChild("SuperTap")
 local RebirthEvent = ReplicatedStorage:WaitForChild("Rebirth")
 local AscendEvent = ReplicatedStorage:WaitForChild("Ascend")
-local UpgradeEvent = ReplicatedStorage:WaitForChild("Upgrade")
 local EggHatchingRemote = ReplicatedStorage:WaitForChild("EggHatchingRemote")
 local HatchServer = EggHatchingRemote:WaitForChild("HatchServer")
 local PotionEvent = ReplicatedStorage:WaitForChild("PotionEvent")
 local RainbowPotion1 = PotionEvent:WaitForChild("RainbowPotion1")
 local LuckPotion3 = PotionEvent:WaitForChild("LuckPotion3")
 local LuckPotion2 = PotionEvent:WaitForChild("LuckPotion2")
+local TapPotion = PotionEvent:WaitForChild("TapPotion")
+local GemsPotion = PotionEvent:WaitForChild("GemsPotion")
+local LuckPotion = PotionEvent:WaitForChild("LuckPotion")
 
 local Workspace = game:GetService("Workspace")
 local EggsFolder = Workspace:WaitForChild("Eggs")
@@ -58,7 +60,6 @@ local tapConnection
 local superTapConnection
 local rebirthConnection
 local ascendConnection
-local upgradeConnection
 local antiAFKConnection
 local hatchConnection
 local potionConnection
@@ -68,7 +69,6 @@ local selectedEggs = {}
 local eggToggles = {}
 local selectedPotion = "RainbowPotion1"
 local selectedRebirth = 1
-local selectedUpgrade = "Luck"
 local hatchDelay = 0.25
 
 -- Таблица rebirth множителей
@@ -103,14 +103,6 @@ local rebirthOptions = {
     {name = "x1Oc", value = 1e27},
     {name = "x5Oc", value = 5e27},
     {name = "x10Oc", value = 1e28},
-}
-
--- Таблица улучшений
-local upgradeOptions = {
-    {name = "Luck", display = "Luck"},
-    {name = "More Taps", display = "More Taps"},
-    {name = "More Gems", display = "More Gems"},
-    {name = "HatchSpeed", display = "Hatch Speed"},
 }
 
 -- Функция нажатия E
@@ -256,83 +248,16 @@ do
     end
     
     local section3 = menu:addSection({
-        text = 'Auto Upgrade',
-        side = 'left'
-    })
-    
-    do
-        section3:addLabel({
-            text = 'Select Upgrade'
-        })
-        
-        for _, option in ipairs(upgradeOptions) do
-            section3:addButton({
-                text = option.display,
-                style = 'small'
-            }, function()
-                selectedUpgrade = option.name
-                ui.notify({
-                    title = 'Upgrade',
-                    message = 'Selected: ' .. option.display,
-                    duration = 2
-                })
-            end)
-        end
-        
-        section3:addLabel({
-            text = ' '
-        })
-        
-        section3:addLabel({
-            text = 'Auto Upgrade Control'
-        })
-        
-        local upgradeToggle = section3:addToggle({
-            text = 'Auto Upgrade',
-            state = false
-        })
-        
-        upgradeToggle:bindToEvent('onToggle', function(newState)
-            if newState then
-                upgradeConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        UpgradeEvent:InvokeServer(selectedUpgrade)
-                    end)
-                end)
-            else
-                if upgradeConnection then
-                    upgradeConnection:Disconnect()
-                    upgradeConnection = nil
-                end
-            end
-        end)
-        
-        section3:addButton({
-            text = 'Upgrade Once',
-            style = 'small'
-        }, function()
-            pcall(function()
-                UpgradeEvent:InvokeServer(selectedUpgrade)
-            end)
-            ui.notify({
-                title = 'Upgrade',
-                message = 'Upgraded: ' .. selectedUpgrade,
-                duration = 2
-            })
-        end):setTooltip('Upgrade selected stat once')
-    end
-    
-    local section4 = menu:addSection({
         text = 'Teleport',
         side = 'right'
     })
     
     do
-        section4:addLabel({
+        section3:addLabel({
             text = 'Teleport to Ascend'
         })
         
-        section4:addButton({
+        section3:addButton({
             text = 'Teleport to Ascend',
             style = 'large'
         }, function()
@@ -373,17 +298,17 @@ do
         end):setTooltip('Teleports you to workspace.Ascensions.Ascend.Main')
     end
     
-    local section5 = menu:addSection({
+    local section4 = menu:addSection({
         text = 'Ascend',
         side = 'right'
     })
     
     do
-        section5:addLabel({
+        section4:addLabel({
             text = 'Auto Ascend'
         })
         
-        local ascendToggle = section5:addToggle({
+        local ascendToggle = section4:addToggle({
             text = 'Auto Ascend',
             state = false
         })
@@ -429,7 +354,7 @@ do
             end
         end)
         
-        section5:addButton({
+        section4:addButton({
             text = 'Ascend Once',
             style = 'small'
         }, function()
@@ -670,6 +595,42 @@ do
                 duration = 2
             })
         end):setTooltip('Select x3 Luck Potion (6702)')
+        
+        section:addButton({
+            text = 'Tap Potion',
+            style = 'large'
+        }, function()
+            selectedPotion = "TapPotion"
+            ui.notify({
+                title = 'Potion Selected',
+                message = 'Tap Potion selected!',
+                duration = 2
+            })
+        end):setTooltip('Select Tap Potion (600)')
+        
+        section:addButton({
+            text = 'Gems Potion',
+            style = 'large'
+        }, function()
+            selectedPotion = "GemsPotion"
+            ui.notify({
+                title = 'Potion Selected',
+                message = 'Gems Potion selected!',
+                duration = 2
+            })
+        end):setTooltip('Select Gems Potion (600)')
+        
+        section:addButton({
+            text = 'Luck Potion',
+            style = 'large'
+        }, function()
+            selectedPotion = "LuckPotion"
+            ui.notify({
+                title = 'Potion Selected',
+                message = 'Luck Potion selected!',
+                duration = 2
+            })
+        end):setTooltip('Select Luck Potion (600)')
     end
     
     local section2 = potionsMenu:addSection({
@@ -697,6 +658,12 @@ do
                             LuckPotion3:FireServer(14498)
                         elseif selectedPotion == "LuckPotion2" then
                             LuckPotion2:FireServer(6702)
+                        elseif selectedPotion == "TapPotion" then
+                            TapPotion:FireServer(600)
+                        elseif selectedPotion == "GemsPotion" then
+                            GemsPotion:FireServer(600)
+                        elseif selectedPotion == "LuckPotion" then
+                            LuckPotion:FireServer(600)
                         end
                     end)
                 end)
@@ -732,6 +699,27 @@ do
                     ui.notify({
                         title = 'Potion',
                         message = 'Bought x3 Luck Potion!',
+                        duration = 2
+                    })
+                elseif selectedPotion == "TapPotion" then
+                    TapPotion:FireServer(600)
+                    ui.notify({
+                        title = 'Potion',
+                        message = 'Bought Tap Potion!',
+                        duration = 2
+                    })
+                elseif selectedPotion == "GemsPotion" then
+                    GemsPotion:FireServer(600)
+                    ui.notify({
+                        title = 'Potion',
+                        message = 'Bought Gems Potion!',
+                        duration = 2
+                    })
+                elseif selectedPotion == "LuckPotion" then
+                    LuckPotion:FireServer(600)
+                    ui.notify({
+                        title = 'Potion',
+                        message = 'Bought Luck Potion!',
                         duration = 2
                     })
                 end
@@ -929,15 +917,15 @@ do
         })
         
         section:addLabel({
-            text = '[v1.8] Added Adjustable Hatch Delay'
+            text = '[v1.8] Added Adjustable Hatch Delay (0.01-0.5s)'
         })
         
         section:addLabel({
-            text = '[v1.9] Added Auto Ascend + Auto E'
+            text = '[v1.9] Added Auto Ascend + Auto E Press'
         })
         
         section:addLabel({
-            text = '[v2.0] Added Auto Upgrade (Luck/MoreTaps/MoreGems/HatchSpeed)'
+            text = '[v2.0] Added Tap/Gems/Luck Potions'
         })
     end
     
@@ -976,7 +964,15 @@ do
         })
         
         section2:addLabel({
-            text = '- Added Auto Upgrade Feature'
+            text = '- Added Hatch Delay Slider'
+        })
+        
+        section2:addLabel({
+            text = '- Added Auto Ascend + Auto E'
+        })
+        
+        section2:addLabel({
+            text = '- Added 3 New Potions'
         })
     end
     
@@ -1006,7 +1002,6 @@ window:bindToEvent('onClose', function()
     if superTapConnection then superTapConnection:Disconnect() end
     if rebirthConnection then rebirthConnection:Disconnect() end
     if ascendConnection then ascendConnection:Disconnect() end
-    if upgradeConnection then upgradeConnection:Disconnect() end
     if antiAFKConnection then antiAFKConnection:Disconnect() end
     if hatchConnection then hatchConnection:Disconnect() end
     if potionConnection then potionConnection:Disconnect() end
