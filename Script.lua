@@ -10,7 +10,7 @@ local ui = uiLoader({
 ui.autoDisableToggles = true
 
 local window = ui.newWindow({
-    text = 'Argonium v1 By t.me/AgroniumGG',
+    text = 'Argonium v1 │By t.me/AgroniumGG',
     resize = true,
     size = Vector2.new(550, 500),
     position = nil
@@ -984,6 +984,10 @@ do
     do
         section3:addLabel({
             text = ' '
+        })
+        
+        section3:addLabel({
+            text = 'Telegram: t.me/AgroniumGG'
         })
         
         section3:addLabel({
