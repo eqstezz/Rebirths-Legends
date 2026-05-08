@@ -1,4 +1,4 @@
--- Made by pogreshim
+-- Argonium v1 │By t.me/AgroniumGG
 -- Dollarware UI
 local uiLoader = loadstring(game:HttpGet('https://raw.githubusercontent.com/topitbopit/dollarware/main/library.lua'))
 local ui = uiLoader({
@@ -42,18 +42,18 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Мгновенные ProximityPrompt
-for _, prompt in ipairs(game:GetDescendants()) do
-    if prompt:IsA("ProximityPrompt") then
-        prompt.HoldDuration = 0
+-- Мгновенные ProximityPrompt (оптимизировано)
+local function setHoldDuration(obj)
+    if obj:IsA("ProximityPrompt") then
+        pcall(function() obj.HoldDuration = 0 end)
     end
 end
 
-game.DescendantAdded:Connect(function(obj)
-    if obj:IsA("ProximityPrompt") then
-        obj.HoldDuration = 0
-    end
-end)
+for _, obj in ipairs(game:GetDescendants()) do
+    setHoldDuration(obj)
+end
+
+game.DescendantAdded:Connect(setHoldDuration)
 
 -- Переменные
 local tapConnection
@@ -66,10 +66,62 @@ local potionConnection
 local infJumpEnabled = false
 local menuVisible = true
 local selectedEggs = {}
-local eggToggles = {}
 local selectedPotion = "RainbowPotion1"
 local selectedRebirth = 1
-local hatchDelay = 0.25
+local hatchDelay = 0.1
+local lastAscendTime = 0
+local lastRebirthTime = 0
+local lastPotionTime = 0
+local lastHatchTime = 0
+local ASCEND_COOLDOWN = 1
+local REBIRTH_COOLDOWN = 1
+local POTION_COOLDOWN = 0.5
+local HATCH_COOLDOWN = 0.05
+
+-- Кэширование
+local cachedAscendPart = nil
+local cachedAscendMain = nil
+local lastAscendCacheTime = 0
+local ASCEND_CACHE_DURATION = 5
+
+local function getAscendPart()
+    local now = tick()
+    if cachedAscendMain and (now - lastAscendCacheTime) < ASCEND_CACHE_DURATION then
+        return cachedAscendMain
+    end
+    local ascensions = Workspace:FindFirstChild("Ascensions")
+    if ascensions then
+        local ascend = ascensions:FindFirstChild("Ascend")
+        if ascend then
+            local mainPart = ascend:FindFirstChild("Main")
+            if mainPart then
+                cachedAscendMain = mainPart
+                lastAscendCacheTime = now
+                return mainPart
+            end
+        end
+    end
+    return nil
+end
+
+local cachedEggs = {}
+local lastEggCacheTime = 0
+local EGG_CACHE_DURATION = 10
+
+local function getCachedEggs()
+    local now = tick()
+    if #cachedEggs > 0 and (now - lastEggCacheTime) < EGG_CACHE_DURATION then
+        return cachedEggs
+    end
+    cachedEggs = {}
+    for _, egg in ipairs(EggsFolder:GetChildren()) do
+        if egg:IsA("Model") or egg:IsA("Part") or egg:IsA("MeshPart") then
+            table.insert(cachedEggs, egg)
+        end
+    end
+    lastEggCacheTime = now
+    return cachedEggs
+end
 
 -- Таблица rebirth множителей
 local rebirthOptions = {
@@ -105,13 +157,10 @@ local rebirthOptions = {
     {name = "x10Oc", value = 1e28},
 }
 
--- Функция нажатия E
+-- Оптимизированная функция нажатия E
 local function pressE()
-    pcall(function()
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
-        task.wait(0.05)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
-    end)
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
 end
 
 -- Открытие/закрытие меню на RightAlt
@@ -119,9 +168,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.RightAlt then
         menuVisible = not menuVisible
-        window:SetVisible(menuVisible)
+        pcall(function() window:SetVisible(menuVisible) end)
     end
 end)
+
+-- Оптимизированная функция телепорта
+local function teleportToPart(part)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    pcall(function()
+        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+    end)
+end
 
 -- Меню Auto Farm
 local menu = window:addMenu({
@@ -146,16 +206,17 @@ do
         
         tapToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if tapConnection then tapConnection:Disconnect() end
+                local lastTap = 0
                 tapConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        TapEvent:FireServer()
-                    end)
+                    local now = tick()
+                    if now - lastTap >= 0.001 then
+                        lastTap = now
+                        pcall(function() TapEvent:FireServer() end)
+                    end
                 end)
             else
-                if tapConnection then
-                    tapConnection:Disconnect()
-                    tapConnection = nil
-                end
+                if tapConnection then tapConnection:Disconnect(); tapConnection = nil end
             end
         end)
         
@@ -166,16 +227,17 @@ do
         
         superTapToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if superTapConnection then superTapConnection:Disconnect() end
+                local lastSuperTap = 0
                 superTapConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        SuperTapEvent:FireServer()
-                    end)
+                    local now = tick()
+                    if now - lastSuperTap >= 0.001 then
+                        lastSuperTap = now
+                        pcall(function() SuperTapEvent:FireServer() end)
+                    end
                 end)
             else
-                if superTapConnection then
-                    superTapConnection:Disconnect()
-                    superTapConnection = nil
-                end
+                if superTapConnection then superTapConnection:Disconnect(); superTapConnection = nil end
             end
         end)
     end
@@ -196,11 +258,6 @@ do
                 style = 'small'
             }, function()
                 selectedRebirth = option.value
-                ui.notify({
-                    title = 'Rebirth',
-                    message = 'Selected: ' .. option.name,
-                    duration = 2
-                })
             end)
         end
         
@@ -219,16 +276,16 @@ do
         
         rebirthToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if rebirthConnection then rebirthConnection:Disconnect() end
                 rebirthConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        RebirthEvent:FireServer(selectedRebirth)
-                    end)
+                    local now = tick()
+                    if now - lastRebirthTime >= REBIRTH_COOLDOWN then
+                        lastRebirthTime = now
+                        pcall(function() RebirthEvent:FireServer(selectedRebirth) end)
+                    end
                 end)
             else
-                if rebirthConnection then
-                    rebirthConnection:Disconnect()
-                    rebirthConnection = nil
-                end
+                if rebirthConnection then rebirthConnection:Disconnect(); rebirthConnection = nil end
             end
         end)
         
@@ -236,15 +293,8 @@ do
             text = 'Rebirth Once',
             style = 'small'
         }, function()
-            pcall(function()
-                RebirthEvent:FireServer(selectedRebirth)
-            end)
-            ui.notify({
-                title = 'Rebirth',
-                message = 'Rebirthed once!',
-                duration = 2
-            })
-        end):setTooltip('Rebirth one time with selected multiplier')
+            pcall(function() RebirthEvent:FireServer(selectedRebirth) end)
+        end)
     end
     
     local section3 = menu:addSection({
@@ -261,41 +311,11 @@ do
             text = 'Teleport to Ascend',
             style = 'large'
         }, function()
-            pcall(function()
-                local char = LocalPlayer.Character
-                if not char then
-                    LocalPlayer.CharacterAdded:Wait()
-                    char = LocalPlayer.Character
-                end
-                
-                local hrp = char:WaitForChild("HumanoidRootPart", 5)
-                if not hrp then return end
-                
-                local ascensions = Workspace:WaitForChild("Ascensions", 5)
-                if not ascensions then return end
-                
-                local ascend = ascensions:WaitForChild("Ascend", 5)
-                if not ascend then return end
-                
-                local mainPart = ascend:WaitForChild("Main", 5)
-                if not mainPart then return end
-                
-                local targetCFrame = mainPart.CFrame + Vector3.new(0, 3, 0)
-                
-                local distance = (hrp.Position - targetCFrame.Position).Magnitude
-                local speed = math.max(distance / 0.5, 100)
-                
-                local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-                tween:Play()
-                tween.Completed:Wait()
-            end)
-            ui.notify({
-                title = 'Teleport',
-                message = 'Teleported to Ascend!',
-                duration = 2
-            })
-        end):setTooltip('Teleports you to workspace.Ascensions.Ascend.Main')
+            local mainPart = getAscendPart()
+            if mainPart then
+                teleportToPart(mainPart)
+            end
+        end)
     end
     
     local section4 = menu:addSection({
@@ -315,42 +335,23 @@ do
         
         ascendToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if ascendConnection then ascendConnection:Disconnect() end
                 ascendConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        local char = LocalPlayer.Character
-                        if not char then
-                            LocalPlayer.CharacterAdded:Wait()
-                            char = LocalPlayer.Character
-                        end
-                        
-                        local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if not hrp then return end
-                        
-                        local ascensions = Workspace:FindFirstChild("Ascensions")
-                        if not ascensions then return end
-                        
-                        local ascend = ascensions:FindFirstChild("Ascend")
-                        if not ascend then return end
-                        
-                        local mainPart = ascend:FindFirstChild("Main")
-                        if not mainPart then return end
-                        
-                        hrp.CFrame = mainPart.CFrame + Vector3.new(0, 3, 0)
-                        
-                        task.wait(0.1)
-                        
-                        AscendEvent:FireServer()
-                        
-                        task.wait(0.1)
-                        
-                        pressE()
-                    end)
+                    local now = tick()
+                    if now - lastAscendTime >= ASCEND_COOLDOWN then
+                        lastAscendTime = now
+                        pcall(function()
+                            local mainPart = getAscendPart()
+                            if mainPart then
+                                teleportToPart(mainPart)
+                                AscendEvent:FireServer()
+                                pressE()
+                            end
+                        end)
+                    end
                 end)
             else
-                if ascendConnection then
-                    ascendConnection:Disconnect()
-                    ascendConnection = nil
-                end
+                if ascendConnection then ascendConnection:Disconnect(); ascendConnection = nil end
             end
         end)
         
@@ -359,36 +360,14 @@ do
             style = 'small'
         }, function()
             pcall(function()
-                local char = LocalPlayer.Character
-                if not char then
-                    LocalPlayer.CharacterAdded:Wait()
-                    char = LocalPlayer.Character
-                end
-                
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local ascensions = Workspace:FindFirstChild("Ascensions")
-                    if ascensions then
-                        local ascend = ascensions:FindFirstChild("Ascend")
-                        if ascend then
-                            local mainPart = ascend:FindFirstChild("Main")
-                            if mainPart then
-                                hrp.CFrame = mainPart.CFrame + Vector3.new(0, 3, 0)
-                                task.wait(0.1)
-                                AscendEvent:FireServer()
-                                task.wait(0.1)
-                                pressE()
-                            end
-                        end
-                    end
+                local mainPart = getAscendPart()
+                if mainPart then
+                    teleportToPart(mainPart)
+                    AscendEvent:FireServer()
+                    pressE()
                 end
             end)
-            ui.notify({
-                title = 'Ascend',
-                message = 'Ascended once!',
-                duration = 2
-            })
-        end):setTooltip('Teleport to Ascend and use it once')
+        end)
     end
 end
 
@@ -408,25 +387,21 @@ do
             text = 'Select eggs to auto hatch'
         })
         
-        local eggList = EggsFolder:GetChildren()
+        local eggList = getCachedEggs()
         table.sort(eggList, function(a, b) return a.Name < b.Name end)
         
         for _, egg in ipairs(eggList) do
             local eggName = egg.Name
-            local eggToggle = section:addToggle({
+            section:addToggle({
                 text = eggName,
                 state = false
-            })
-            
-            eggToggle:bindToEvent('onToggle', function(newState)
+            }):bindToEvent('onToggle', function(newState)
                 if newState then
                     selectedEggs[eggName] = true
                 else
                     selectedEggs[eggName] = nil
                 end
             end)
-            
-            table.insert(eggToggles, eggToggle)
         end
     end
     
@@ -444,27 +419,17 @@ do
             text = 'Select All Eggs',
             style = 'small'
         }, function()
-            for _, egg in ipairs(EggsFolder:GetChildren()) do
+            for _, egg in ipairs(getCachedEggs()) do
                 selectedEggs[egg.Name] = true
             end
-            ui.notify({
-                title = 'Eggs',
-                message = 'All eggs selected!',
-                duration = 2
-            })
-        end):setTooltip('Select all available eggs')
+        end)
         
         section2:addButton({
             text = 'Deselect All Eggs',
             style = 'small'
         }, function()
             selectedEggs = {}
-            ui.notify({
-                title = 'Eggs',
-                message = 'All eggs deselected!',
-                duration = 2
-            })
-        end):setTooltip('Deselect all eggs')
+        end)
         
         section2:addLabel({
             text = ' '
@@ -479,15 +444,10 @@ do
             min = 0.01,
             max = 0.5,
             step = 0.01,
-            val = 0.25
+            val = 0.1
         }, function(newValue)
-            hatchDelay = newValue
-            ui.notify({
-                title = 'Hatch Delay',
-                message = 'Delay set to: ' .. string.format("%.2f", newValue) .. 's',
-                duration = 2
-            })
-        end):setTooltip('Set hatch delay (0.01s - 0.5s)')
+            hatchDelay = math.max(0.01, newValue)
+        end)
         
         section2:addLabel({
             text = ' '
@@ -504,22 +464,39 @@ do
         
         hatchToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if hatchConnection then hatchConnection:Disconnect() end
+                local eggList = {}
+                local lastUpdate = 0
+                
                 hatchConnection = RunService.Heartbeat:Connect(function()
-                    for eggName, _ in pairs(selectedEggs) do
-                        pcall(function()
+                    local now = tick()
+                    if now - lastHatchTime >= hatchDelay then
+                        lastHatchTime = now
+                        
+                        if now - lastUpdate > 5 then
+                            eggList = {}
+                            for name in pairs(selectedEggs) do
+                                table.insert(eggList, name)
+                            end
+                            lastUpdate = now
+                        end
+                        
+                        if #eggList == 0 then
+                            for name in pairs(selectedEggs) do
+                                table.insert(eggList, name)
+                            end
+                        end
+                        
+                        for _, eggName in ipairs(eggList) do
                             local egg = EggsFolder:FindFirstChild(eggName)
                             if egg then
-                                HatchServer:InvokeServer(egg)
+                                pcall(function() HatchServer:InvokeServer(egg) end)
                             end
-                        end)
-                        task.wait(hatchDelay)
+                        end
                     end
                 end)
             else
-                if hatchConnection then
-                    hatchConnection:Disconnect()
-                    hatchConnection = nil
-                end
+                if hatchConnection then hatchConnection:Disconnect(); hatchConnection = nil end
             end
         end)
         
@@ -527,20 +504,13 @@ do
             text = 'Hatch Selected Once',
             style = 'small'
         }, function()
-            for eggName, _ in pairs(selectedEggs) do
-                pcall(function()
-                    local egg = EggsFolder:FindFirstChild(eggName)
-                    if egg then
-                        HatchServer:InvokeServer(egg)
-                    end
-                end)
+            for eggName in pairs(selectedEggs) do
+                local egg = EggsFolder:FindFirstChild(eggName)
+                if egg then
+                    pcall(function() HatchServer:InvokeServer(egg) end)
+                end
             end
-            ui.notify({
-                title = 'Hatch',
-                message = 'Hatched all selected eggs once!',
-                duration = 2
-            })
-        end):setTooltip('Hatch all selected eggs one time')
+        end)
     end
 end
 
@@ -560,77 +530,23 @@ do
             text = 'Choose a potion to auto buy'
         })
         
-        section:addButton({
-            text = 'Rainbow Potion',
-            style = 'large'
-        }, function()
-            selectedPotion = "RainbowPotion1"
-            ui.notify({
-                title = 'Potion Selected',
-                message = 'Rainbow Potion selected!',
-                duration = 2
-            })
-        end):setTooltip('Select Rainbow Potion (465)')
+        local potionButtons = {
+            {text = 'Rainbow Potion', value = "RainbowPotion1"},
+            {text = 'x4 Luck Potion', value = "LuckPotion3"},
+            {text = 'x3 Luck Potion', value = "LuckPotion2"},
+            {text = 'Tap Potion', value = "TapPotion"},
+            {text = 'Gems Potion', value = "GemsPotion"},
+            {text = 'Luck Potion', value = "LuckPotion"},
+        }
         
-        section:addButton({
-            text = 'x4 Luck Potion',
-            style = 'large'
-        }, function()
-            selectedPotion = "LuckPotion3"
-            ui.notify({
-                title = 'Potion Selected',
-                message = 'x4 Luck Potion selected!',
-                duration = 2
-            })
-        end):setTooltip('Select x4 Luck Potion (14498)')
-        
-        section:addButton({
-            text = 'x3 Luck Potion',
-            style = 'large'
-        }, function()
-            selectedPotion = "LuckPotion2"
-            ui.notify({
-                title = 'Potion Selected',
-                message = 'x3 Luck Potion selected!',
-                duration = 2
-            })
-        end):setTooltip('Select x3 Luck Potion (6702)')
-        
-        section:addButton({
-            text = 'Tap Potion',
-            style = 'large'
-        }, function()
-            selectedPotion = "TapPotion"
-            ui.notify({
-                title = 'Potion Selected',
-                message = 'Tap Potion selected!',
-                duration = 2
-            })
-        end):setTooltip('Select Tap Potion (600)')
-        
-        section:addButton({
-            text = 'Gems Potion',
-            style = 'large'
-        }, function()
-            selectedPotion = "GemsPotion"
-            ui.notify({
-                title = 'Potion Selected',
-                message = 'Gems Potion selected!',
-                duration = 2
-            })
-        end):setTooltip('Select Gems Potion (600)')
-        
-        section:addButton({
-            text = 'Luck Potion',
-            style = 'large'
-        }, function()
-            selectedPotion = "LuckPotion"
-            ui.notify({
-                title = 'Potion Selected',
-                message = 'Luck Potion selected!',
-                duration = 2
-            })
-        end):setTooltip('Select Luck Potion (600)')
+        for _, btn in ipairs(potionButtons) do
+            section:addButton({
+                text = btn.text,
+                style = 'large'
+            }, function()
+                selectedPotion = btn.value
+            end)
+        end
     end
     
     local section2 = potionsMenu:addSection({
@@ -650,28 +566,30 @@ do
         
         potionToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if potionConnection then potionConnection:Disconnect() end
                 potionConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        if selectedPotion == "RainbowPotion1" then
-                            RainbowPotion1:FireServer(465)
-                        elseif selectedPotion == "LuckPotion3" then
-                            LuckPotion3:FireServer(14498)
-                        elseif selectedPotion == "LuckPotion2" then
-                            LuckPotion2:FireServer(6702)
-                        elseif selectedPotion == "TapPotion" then
-                            TapPotion:FireServer(600)
-                        elseif selectedPotion == "GemsPotion" then
-                            GemsPotion:FireServer(600)
-                        elseif selectedPotion == "LuckPotion" then
-                            LuckPotion:FireServer(600)
-                        end
-                    end)
+                    local now = tick()
+                    if now - lastPotionTime >= POTION_COOLDOWN then
+                        lastPotionTime = now
+                        pcall(function()
+                            if selectedPotion == "RainbowPotion1" then
+                                RainbowPotion1:FireServer(465)
+                            elseif selectedPotion == "LuckPotion3" then
+                                LuckPotion3:FireServer(14498)
+                            elseif selectedPotion == "LuckPotion2" then
+                                LuckPotion2:FireServer(6702)
+                            elseif selectedPotion == "TapPotion" then
+                                TapPotion:FireServer(600)
+                            elseif selectedPotion == "GemsPotion" then
+                                GemsPotion:FireServer(600)
+                            elseif selectedPotion == "LuckPotion" then
+                                LuckPotion:FireServer(600)
+                            end
+                        end)
+                    end
                 end)
             else
-                if potionConnection then
-                    potionConnection:Disconnect()
-                    potionConnection = nil
-                end
+                if potionConnection then potionConnection:Disconnect(); potionConnection = nil end
             end
         end)
         
@@ -680,51 +598,15 @@ do
             style = 'large'
         }, function()
             pcall(function()
-                if selectedPotion == "RainbowPotion1" then
-                    RainbowPotion1:FireServer(465)
-                    ui.notify({
-                        title = 'Potion',
-                        message = 'Bought Rainbow Potion!',
-                        duration = 2
-                    })
-                elseif selectedPotion == "LuckPotion3" then
-                    LuckPotion3:FireServer(14498)
-                    ui.notify({
-                        title = 'Potion',
-                        message = 'Bought x4 Luck Potion!',
-                        duration = 2
-                    })
-                elseif selectedPotion == "LuckPotion2" then
-                    LuckPotion2:FireServer(6702)
-                    ui.notify({
-                        title = 'Potion',
-                        message = 'Bought x3 Luck Potion!',
-                        duration = 2
-                    })
-                elseif selectedPotion == "TapPotion" then
-                    TapPotion:FireServer(600)
-                    ui.notify({
-                        title = 'Potion',
-                        message = 'Bought Tap Potion!',
-                        duration = 2
-                    })
-                elseif selectedPotion == "GemsPotion" then
-                    GemsPotion:FireServer(600)
-                    ui.notify({
-                        title = 'Potion',
-                        message = 'Bought Gems Potion!',
-                        duration = 2
-                    })
-                elseif selectedPotion == "LuckPotion" then
-                    LuckPotion:FireServer(600)
-                    ui.notify({
-                        title = 'Potion',
-                        message = 'Bought Luck Potion!',
-                        duration = 2
-                    })
+                if selectedPotion == "RainbowPotion1" then RainbowPotion1:FireServer(465)
+                elseif selectedPotion == "LuckPotion3" then LuckPotion3:FireServer(14498)
+                elseif selectedPotion == "LuckPotion2" then LuckPotion2:FireServer(6702)
+                elseif selectedPotion == "TapPotion" then TapPotion:FireServer(600)
+                elseif selectedPotion == "GemsPotion" then GemsPotion:FireServer(600)
+                elseif selectedPotion == "LuckPotion" then LuckPotion:FireServer(600)
                 end
             end)
-        end):setTooltip('Buy the selected potion once')
+        end)
     end
 end
 
@@ -751,18 +633,21 @@ do
         
         antiAFKToggle:bindToEvent('onToggle', function(newState)
             if newState then
+                if antiAFKConnection then antiAFKConnection:Disconnect() end
                 local VirtualUser = game:GetService("VirtualUser")
+                local lastAFK = 0
                 antiAFKConnection = RunService.Heartbeat:Connect(function()
-                    pcall(function()
-                        VirtualUser:CaptureController()
-                        VirtualUser:ClickButton2(Vector2.new())
-                    end)
+                    local now = tick()
+                    if now - lastAFK >= 60 then
+                        lastAFK = now
+                        pcall(function()
+                            VirtualUser:CaptureController()
+                            VirtualUser:ClickButton2(Vector2.new())
+                        end)
+                    end
                 end)
             else
-                if antiAFKConnection then
-                    antiAFKConnection:Disconnect()
-                    antiAFKConnection = nil
-                end
+                if antiAFKConnection then antiAFKConnection:Disconnect(); antiAFKConnection = nil end
             end
         end)
     end
@@ -784,16 +669,14 @@ do
             step = 1,
             val = 16
         }, function(newValue)
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char then
-                    local humanoid = char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        humanoid.WalkSpeed = newValue
-                    end
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = newValue
                 end
-            end)
-        end):setTooltip('Set your walkspeed (16 - 500)')
+            end
+        end)
         
         section2:addLabel({
             text = 'Jump Power'
@@ -806,16 +689,14 @@ do
             step = 1,
             val = 50
         }, function(newValue)
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char then
-                    local humanoid = char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        humanoid.JumpPower = newValue
-                    end
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = newValue
                 end
-            end)
-        end):setTooltip('Set your jump power (50 - 500)')
+            end
+        end)
     end
     
     local section3 = miscMenu:addSection({
@@ -828,21 +709,6 @@ do
             text = 'Infinite Jump'
         })
         
-        local function enableInfJump(char)
-            local humanoid = char:WaitForChild("Humanoid")
-            
-            task.spawn(function()
-                while infJumpEnabled do
-                    pcall(function()
-                        if humanoid and humanoid.Parent then
-                            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                        end
-                    end)
-                    task.wait()
-                end
-            end)
-        end
-        
         local infJumpToggle = section3:addToggle({
             text = 'Infinite Jump',
             state = false
@@ -851,18 +717,23 @@ do
         infJumpToggle:bindToEvent('onToggle', function(newState)
             infJumpEnabled = newState
             if newState then
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        enableInfJump(char)
+                local function setupInfJump(char)
+                    local humanoid = char:WaitForChild("Humanoid")
+                    humanoid.StateChanged:Connect(function(old, new)
+                        if infJumpEnabled and new == Enum.HumanoidStateType.Landed then
+                                            task.wait(0.05)
+                            pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end)
+                        end
+                    end)
+                end
+                if LocalPlayer.Character then
+                    setupInfJump(LocalPlayer.Character)
+                end
+                LocalPlayer.CharacterAdded:Connect(function(char)
+                    if infJumpEnabled then
+                        setupInfJump(char)
                     end
                 end)
-            end
-        end)
-        
-        LocalPlayer.CharacterAdded:Connect(function(char)
-            if infJumpEnabled then
-                enableInfJump(char)
             end
         end)
     end
@@ -880,53 +751,18 @@ do
     })
     
     do
-        section:addLabel({
-            text = ' '
-        })
-        
-        section:addLabel({
-            text = '[v1.0] Initial Release'
-        })
-        
-        section:addLabel({
-            text = '[v1.1] Added Potions (Rainbow, x3, x4)'
-        })
-        
-        section:addLabel({
-            text = '[v1.2] Added 46 Eggs Auto Hatch'
-        })
-        
-        section:addLabel({
-            text = '[v1.3] Added Anti-AFK'
-        })
-        
-        section:addLabel({
-            text = '[v1.4] Added TP to Ascend'
-        })
-        
-        section:addLabel({
-            text = '[v1.5] Added Egg List with Selection'
-        })
-        
-        section:addLabel({
-            text = '[v1.6] Added Rebirth Multiplier List'
-        })
-        
-        section:addLabel({
-            text = '[v1.7] UI Improvements & Bug Fixes'
-        })
-        
-        section:addLabel({
-            text = '[v1.8] Added Adjustable Hatch Delay (0.01-0.5s)'
-        })
-        
-        section:addLabel({
-            text = '[v1.9] Added Auto Ascend + Auto E Press'
-        })
-        
-        section:addLabel({
-            text = '[v2.0] Added Tap/Gems/Luck Potions'
-        })
+        section:addLabel({text = ' '})
+        section:addLabel({text = '[v1.0] Initial Release'})
+        section:addLabel({text = '[v1.1] Added Potions'})
+        section:addLabel({text = '[v1.2] Added Eggs Auto Hatch'})
+        section:addLabel({text = '[v1.3] Added Anti-AFK'})
+        section:addLabel({text = '[v1.4] Added TP to Ascend'})
+        section:addLabel({text = '[v1.5] Added Egg List'})
+        section:addLabel({text = '[v1.6] Added Rebirth Multipliers'})
+        section:addLabel({text = '[v1.7] UI Improvements'})
+        section:addLabel({text = '[v1.8] Added Hatch Delay'})
+        section:addLabel({text = '[v1.9] Added Auto Ascend'})
+        section:addLabel({text = '[v2.0] Performance Optimized'})
     end
     
     local section2 = infoMenu:addSection({
@@ -935,45 +771,11 @@ do
     })
     
     do
-        section2:addLabel({
-            text = ' '
-        })
-        
-        section2:addLabel({
-            text = '- Fixed Egg Hatch Remote'
-        })
-        
-        section2:addLabel({
-            text = '- Fixed Rebirth Values'
-        })
-        
-        section2:addLabel({
-            text = '- Fixed Potion Auto Buy'
-        })
-        
-        section2:addLabel({
-            text = '- Fixed UI Overlap Issues'
-        })
-        
-        section2:addLabel({
-            text = '- Fixed Inf Jump Lag'
-        })
-        
-        section2:addLabel({
-            text = '- Optimized Remote Spam'
-        })
-        
-        section2:addLabel({
-            text = '- Added Hatch Delay Slider'
-        })
-        
-        section2:addLabel({
-            text = '- Added Auto Ascend + Auto E'
-        })
-        
-        section2:addLabel({
-            text = '- Added 3 New Potions'
-        })
+        section2:addLabel({text = ' '})
+        section2:addLabel({text = '- Reduced lag significantly'})
+        section2:addLabel({text = '- Added cooldowns'})
+        section2:addLabel({text = '- Cached game objects'})
+        section2:addLabel({text = '- Optimized loops'})
     end
     
     local section3 = infoMenu:addSection({
@@ -982,21 +784,9 @@ do
     })
     
     do
-        section3:addLabel({
-            text = ' '
-        })
-        
-        section3:addLabel({
-            text = 'Telegram: t.me/AgroniumGG'
-        })
-        
-        section3:addLabel({
-            text = 'My Telegram: @Kyoex'
-        })
-        
-        section3:addLabel({
-            text = 'My Discord: eqstez'
-        })
+        section3:addLabel({text = ' '})
+        section3:addLabel({text = 'Telegram: t.me/AgroniumGG'})
+        section3:addLabel({text = 'Discord: eqstez'})
     end
 end
 
