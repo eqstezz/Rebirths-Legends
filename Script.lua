@@ -1,5 +1,5 @@
 -- Argonium v1 │By t.me/AgroniumGG
--- Dollarware UI
+-- Dollarware UI with Anti-Cheat Bypass
 local uiLoader = loadstring(game:HttpGet('https://raw.githubusercontent.com/topitbopit/dollarware/main/library.lua'))
 local ui = uiLoader({
     rounding = false,
@@ -15,6 +15,54 @@ local window = ui.newWindow({
     size = Vector2.new(550, 500),
     position = nil
 })
+
+-- Анти-античит
+local function antiCheatBypass()
+    local CoreGui = game:GetService("CoreGui")
+    if CoreGui:FindFirstChild("ArgoniumGUI") then
+        CoreGui.ArgoniumGUI:Destroy()
+    end
+    
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = string.char(math.random(65, 90)) .. math.random(1000, 9999)
+    ScreenGui.Parent = CoreGui
+    ScreenGui.Enabled = true
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.IgnoreGuiInset = true
+    ScreenGui.DisplayOrder = math.random(10000, 99999)
+    
+    return ScreenGui
+end
+
+local SafeGui = antiCheatBypass()
+
+-- Защита remote вызовов
+local function safeFireServer(remote, ...)
+    task.spawn(function()
+        local success, err = pcall(function()
+            remote:FireServer(...)
+        end)
+        if not success then
+            task.wait(math.random(1, 50) / 1000)
+            pcall(function()
+                remote:FireServer(...)
+            end)
+        end
+    end)
+end
+
+local function safeInvokeServer(remote, ...)
+    local success, result = pcall(function()
+        return remote:InvokeServer(...)
+    end)
+    if not success then
+        task.wait(math.random(1, 30) / 1000)
+        return pcall(function()
+            return remote:InvokeServer(...)
+        end)
+    end
+    return result
+end
 
 -- Сервисы
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,12 +90,16 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Мгновенные ProximityPrompt (оптимизировано)
+-- Мгновенные ProximityPrompt
 local function setHoldDuration(obj)
     if obj:IsA("ProximityPrompt") then
-        pcall(function() obj.HoldDuration = 0 end)
+        task.spawn(function()
+            pcall(function() obj.HoldDuration = 0 end)
+        end)
     end
 end
+
+task.wait(math.random(1, 3))
 
 for _, obj in ipairs(game:GetDescendants()) do
     setHoldDuration(obj)
@@ -157,10 +209,13 @@ local rebirthOptions = {
     {name = "x10Oc", value = 1e28},
 }
 
--- Оптимизированная функция нажатия E
+-- Функция нажатия E
 local function pressE()
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
+    task.spawn(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+        task.wait(math.random(3, 8) / 100)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
+    end)
 end
 
 -- Открытие/закрытие меню на RightAlt
@@ -172,14 +227,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Оптимизированная функция телепорта
+-- Телепорт
 local function teleportToPart(part)
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    pcall(function()
-        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+    task.spawn(function()
+        task.wait(math.random(1, 5) / 100)
+        pcall(function()
+            hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+        end)
     end)
 end
 
@@ -212,7 +270,7 @@ do
                     local now = tick()
                     if now - lastTap >= 0.001 then
                         lastTap = now
-                        pcall(function() TapEvent:FireServer() end)
+                        safeFireServer(TapEvent)
                     end
                 end)
             else
@@ -233,7 +291,7 @@ do
                     local now = tick()
                     if now - lastSuperTap >= 0.001 then
                         lastSuperTap = now
-                        pcall(function() SuperTapEvent:FireServer() end)
+                        safeFireServer(SuperTapEvent)
                     end
                 end)
             else
@@ -281,7 +339,7 @@ do
                     local now = tick()
                     if now - lastRebirthTime >= REBIRTH_COOLDOWN then
                         lastRebirthTime = now
-                        pcall(function() RebirthEvent:FireServer(selectedRebirth) end)
+                        safeFireServer(RebirthEvent, selectedRebirth)
                     end
                 end)
             else
@@ -293,7 +351,7 @@ do
             text = 'Rebirth Once',
             style = 'small'
         }, function()
-            pcall(function() RebirthEvent:FireServer(selectedRebirth) end)
+            safeFireServer(RebirthEvent, selectedRebirth)
         end)
     end
     
@@ -344,7 +402,9 @@ do
                             local mainPart = getAscendPart()
                             if mainPart then
                                 teleportToPart(mainPart)
-                                AscendEvent:FireServer()
+                                task.wait(math.random(1, 5) / 10)
+                                safeFireServer(AscendEvent)
+                                task.wait(math.random(1, 5) / 10)
                                 pressE()
                             end
                         end)
@@ -363,7 +423,9 @@ do
                 local mainPart = getAscendPart()
                 if mainPart then
                     teleportToPart(mainPart)
-                    AscendEvent:FireServer()
+                    task.wait(math.random(1, 3) / 10)
+                    safeFireServer(AscendEvent)
+                    task.wait(math.random(1, 3) / 10)
                     pressE()
                 end
             end)
@@ -441,12 +503,12 @@ do
         
         section2:addSlider({
             text = 'Delay',
-            min = 0.01,
+            min = 0.05,
             max = 0.5,
             step = 0.01,
-            val = 0.1
+            val = 0.15
         }, function(newValue)
-            hatchDelay = math.max(0.01, newValue)
+            hatchDelay = math.max(0.05, newValue)
         end)
         
         section2:addLabel({
@@ -490,7 +552,7 @@ do
                         for _, eggName in ipairs(eggList) do
                             local egg = EggsFolder:FindFirstChild(eggName)
                             if egg then
-                                pcall(function() HatchServer:InvokeServer(egg) end)
+                                safeInvokeServer(HatchServer, egg)
                             end
                         end
                     end
@@ -507,7 +569,7 @@ do
             for eggName in pairs(selectedEggs) do
                 local egg = EggsFolder:FindFirstChild(eggName)
                 if egg then
-                    pcall(function() HatchServer:InvokeServer(egg) end)
+                    safeInvokeServer(HatchServer, egg)
                 end
             end
         end)
@@ -571,19 +633,19 @@ do
                     local now = tick()
                     if now - lastPotionTime >= POTION_COOLDOWN then
                         lastPotionTime = now
-                        pcall(function()
+                        task.spawn(function()
                             if selectedPotion == "RainbowPotion1" then
-                                RainbowPotion1:FireServer(465)
+                                safeFireServer(RainbowPotion1, 465)
                             elseif selectedPotion == "LuckPotion3" then
-                                LuckPotion3:FireServer(14498)
+                                safeFireServer(LuckPotion3, 14498)
                             elseif selectedPotion == "LuckPotion2" then
-                                LuckPotion2:FireServer(6702)
+                                safeFireServer(LuckPotion2, 6702)
                             elseif selectedPotion == "TapPotion" then
-                                TapPotion:FireServer(600)
+                                safeFireServer(TapPotion, 600)
                             elseif selectedPotion == "GemsPotion" then
-                                GemsPotion:FireServer(600)
+                                safeFireServer(GemsPotion, 600)
                             elseif selectedPotion == "LuckPotion" then
-                                LuckPotion:FireServer(600)
+                                safeFireServer(LuckPotion, 600)
                             end
                         end)
                     end
@@ -597,13 +659,13 @@ do
             text = 'Buy Once',
             style = 'large'
         }, function()
-            pcall(function()
-                if selectedPotion == "RainbowPotion1" then RainbowPotion1:FireServer(465)
-                elseif selectedPotion == "LuckPotion3" then LuckPotion3:FireServer(14498)
-                elseif selectedPotion == "LuckPotion2" then LuckPotion2:FireServer(6702)
-                elseif selectedPotion == "TapPotion" then TapPotion:FireServer(600)
-                elseif selectedPotion == "GemsPotion" then GemsPotion:FireServer(600)
-                elseif selectedPotion == "LuckPotion" then LuckPotion:FireServer(600)
+            task.spawn(function()
+                if selectedPotion == "RainbowPotion1" then safeFireServer(RainbowPotion1, 465)
+                elseif selectedPotion == "LuckPotion3" then safeFireServer(LuckPotion3, 14498)
+                elseif selectedPotion == "LuckPotion2" then safeFireServer(LuckPotion2, 6702)
+                elseif selectedPotion == "TapPotion" then safeFireServer(TapPotion, 600)
+                elseif selectedPotion == "GemsPotion" then safeFireServer(GemsPotion, 600)
+                elseif selectedPotion == "LuckPotion" then safeFireServer(LuckPotion, 600)
                 end
             end)
         end)
@@ -640,7 +702,7 @@ do
                     local now = tick()
                     if now - lastAFK >= 60 then
                         lastAFK = now
-                        pcall(function()
+                        task.spawn(function()
                             VirtualUser:CaptureController()
                             VirtualUser:ClickButton2(Vector2.new())
                         end)
@@ -665,7 +727,7 @@ do
         section2:addSlider({
             text = 'WalkSpeed',
             min = 16,
-            max = 500,
+            max = 200,
             step = 1,
             val = 16
         }, function(newValue)
@@ -685,7 +747,7 @@ do
         section2:addSlider({
             text = 'Jump Power',
             min = 50,
-            max = 500,
+            max = 200,
             step = 1,
             val = 50
         }, function(newValue)
@@ -721,7 +783,8 @@ do
                     local humanoid = char:WaitForChild("Humanoid")
                     humanoid.StateChanged:Connect(function(old, new)
                         if infJumpEnabled and new == Enum.HumanoidStateType.Landed then
-                                            task.wait(0.05)
+                            local delay = math.random(5, 15) / 100
+                            task.wait(delay)
                             pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end)
                         end
                     end)
@@ -763,6 +826,8 @@ do
         section:addLabel({text = '[v1.8] Added Hatch Delay'})
         section:addLabel({text = '[v1.9] Added Auto Ascend'})
         section:addLabel({text = '[v2.0] Performance Optimized'})
+        section:addLabel({text = '[v2.1] Anti-Cheat Bypass'})
+        section:addLabel({text = '[v2.2] Upgrade removed by request'})
     end
     
     local section2 = infoMenu:addSection({
@@ -776,6 +841,8 @@ do
         section2:addLabel({text = '- Added cooldowns'})
         section2:addLabel({text = '- Cached game objects'})
         section2:addLabel({text = '- Optimized loops'})
+        section2:addLabel({text = '- Safe remote calls'})
+        section2:addLabel({text = '- Removed Upgrade tab'})
     end
     
     local section3 = infoMenu:addSection({
